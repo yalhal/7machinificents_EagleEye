@@ -1,0 +1,266 @@
+[
+    {
+        "index": 1,
+        "name": "Wakkanai",
+        "center_lat": 45.414,
+        "center_lon": 141.721,
+        "north_south_km": 5,
+        "west_east_km": 15
+    },
+    {
+        "index": 2,
+        "name": "Sapporo",
+        "center_lat": 43.068,
+        "center_lon": 141.352,
+        "north_south_km": 20,
+        "west_east_km": 20
+    },
+    {
+        "index": 3,
+        "name": "Hakodate",
+        "center_lat": 41.802,
+        "center_lon": 140.753,
+        "north_south_km": 15,
+        "west_east_km": 10
+    },
+    {
+        "index": 4,
+        "name": "Aomori",
+        "center_lat": 40.815,
+        "center_lon": 140.749,
+        "north_south_km": 5,
+        "west_east_km": 15
+    },
+    {
+        "index": 5,
+        "name": "Hirosaki",
+        "center_lat": 40.597,
+        "center_lon": 140.477,
+        "north_south_km": 10,
+        "west_east_km": 10
+    },
+    {
+        "index": 6,
+        "name": "Noshiro",
+        "center_lat": 40.21,
+        "center_lon": 140.026,
+        "north_south_km": 10,
+        "west_east_km": 5
+    },
+    {
+        "index": 7,
+        "name": "Akita",
+        "center_lat": 39.724,
+        "center_lon": 140.1,
+        "north_south_km": 15,
+        "west_east_km": 10
+    },
+    {
+        "index": 8,
+        "name": "Morioka-Hanamaki",
+        "center_lat": 39.546,
+        "center_lon": 141.13,
+        "north_south_km": 40,
+        "west_east_km": 5
+    },
+    {
+        "index": 9,
+        "name": "Kesennuma",
+        "center_lat": 38.897,
+        "center_lon": 141.568,
+        "north_south_km": 5,
+        "west_east_km": 10
+    },
+    {
+        "index": 10,
+        "name": "Gassan",
+        "center_lat": 38.551,
+        "center_lon": 140.036,
+        "north_south_km": 15,
+        "west_east_km": 20
+    },
+    {
+        "index": 11,
+        "name": "Yamagata",
+        "center_lat": 38.248,
+        "center_lon": 140.334,
+        "north_south_km": 10,
+        "west_east_km": 5
+    },
+    {
+        "index": 12,
+        "name": "Ishinomaki",
+        "center_lat": 38.434,
+        "center_lon": 141.297,
+        "north_south_km": 5,
+        "west_east_km": 10
+    },
+    {
+        "index": 13,
+        "name": "Sendai",
+        "center_lat": 38.273,
+        "center_lon": 140.873,
+        "north_south_km": 5,
+        "west_east_km": 40
+    },
+    {
+        "index": 14,
+        "name": "Niigata",
+        "center_lat": 37.919,
+        "center_lon": 139.134,
+        "north_south_km": 15,
+        "west_east_km": 40
+    },
+    {
+        "index": 15,
+        "name": "Nagaoka",
+        "center_lat": 37.445,
+        "center_lon": 138.85,
+        "north_south_km": 15,
+        "west_east_km": 5
+    },
+    {
+        "index": 16,
+        "name": "Fukushima",
+        "center_lat": 37.758,
+        "center_lon": 140.467,
+        "north_south_km": 10,
+        "west_east_km": 10
+    },
+    {
+        "index": 17,
+        "name": "Koriyama",
+        "center_lat": 37.397,
+        "center_lon": 140.367,
+        "north_south_km": 10,
+        "west_east_km": 10
+    },
+    {
+        "index": 18,
+        "name": "Nikko",
+        "center_lat": 36.722,
+        "center_lon": 139.697,
+        "north_south_km": 5,
+        "west_east_km": 15
+    },
+    {
+        "index": 19,
+        "name": "Utsunomiya",
+        "center_lat": 36.546,
+        "center_lon": 139.88,
+        "north_south_km": 20,
+        "west_east_km": 10
+    },
+    {
+        "index": 20,
+        "name": "Akagi",
+        "center_lat": 36.552,
+        "center_lon": 139.177,
+        "north_south_km": 15,
+        "west_east_km": 15
+    },
+    {
+        "index": 21,
+        "name": "Maebashi-Takasaki",
+        "center_lat": 36.36,
+        "center_lon": 139.036,
+        "north_south_km": 10,
+        "west_east_km": 10
+    },
+    {
+        "index": 22,
+        "name": "Kofu",
+        "center_lat": 35.674,
+        "center_lon": 138.566,
+        "north_south_km": 10,
+        "west_east_km": 25
+    },
+    {
+        "index": 23,
+        "name": "Chichibu",
+        "center_lat": 36.002,
+        "center_lon": 139.085,
+        "north_south_km": 5,
+        "west_east_km": 10
+    },
+    {
+        "index": 24,
+        "name": "Saitama",
+        "center_lat": 35.864,
+        "center_lon": 139.646,
+        "north_south_km": 10,
+        "west_east_km": 10
+    },
+    {
+        "index": 25,
+        "name": "Tokyo",
+        "center_lat": 35.673,
+        "center_lon": 139.585,
+        "north_south_km": 20,
+        "west_east_km": 50
+    },
+    {
+        "index": 26,
+        "name": "Mito",
+        "center_lat": 36.365,
+        "center_lon": 140.463,
+        "north_south_km": 10,
+        "west_east_km": 10
+    },
+    {
+        "index": 27,
+        "name": "Tsukuba",
+        "center_lat": 36.083,
+        "center_lon": 140.092,
+        "north_south_km": 5,
+        "west_east_km": 10
+    },
+    {
+        "index": 28,
+        "name": "Chiba",
+        "center_lat": 35.606,
+        "center_lon": 140.101,
+        "north_south_km": 10,
+        "west_east_km": 5
+    },
+    {
+        "index": 29,
+        "name": "Narita",
+        "center_lat": 35.766,
+        "center_lon": 140.386,
+        "north_south_km": 5,
+        "west_east_km": 5
+    },
+    {
+        "index": 30,
+        "name": "Yokohama",
+        "center_lat": 35.442,
+        "center_lon": 139.621,
+        "north_south_km": 5,
+        "west_east_km": 10
+    },
+    {
+        "index": 31,
+        "name": "Sagamihara",
+        "center_lat": 35.57,
+        "center_lon": 139.359,
+        "north_south_km": 5,
+        "west_east_km": 10
+    },
+    {
+        "index": 32,
+        "name": "Shizuoka",
+        "center_lat": 34.977,
+        "center_lon": 138.387,
+        "north_south_km": 10,
+        "west_east_km": 10
+    },
+    {
+        "index": 33,
+        "name": "Mt.Fuji",
+        "center_lat": 35.362,
+        "center_lon": 138.729,
+        "north_south_km": 20,
+        "west_east_km": 20
+    }
+]
