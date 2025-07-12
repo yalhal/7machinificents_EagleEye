@@ -25,7 +25,7 @@ function euler_angles_deg = quat2euler_deg(xs, save_count)
     %   euler_angles_deg = quat2euler_deg(q) は、クォータニオン q を対応する
     %   オイラー角度 [ロール (phi), ピッチ (theta), ヨー (psi)] に変換し、
     %   度単位で返します。
-    %   クォータニオン q は [qw, qx, qy, qz] の形式です。
+    %   クォータニオン q は [qx, qy, qz, qw] の形式です。
 
     euler_angles_deg = zeros(save_count,3);
 
