@@ -20,15 +20,13 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
 
     global user
 
-    % at first, change attitude from PX-Sun to PX-orbit angular moment (Z rotation)
+    % at first, change attitude from PX-Sun to PX-Velocity angular moment (Z rotation)
     % in this step, control torque calculated roughly by feed-forward
     if user.mode == 1
         if user.rw_reverse_time == 0
-            orbit_vector_eci = normalize(cross(r, v), "norm");
-            orbit_vector_body = q2dcm(q) * orbit_vector_eci;
-            cross_vector = cross([1.0; 0.0; 0.0], [orbit_vector_body(1:2); 0.0]);
-            torque_dir_z = sign(cross_vector(3));
-            angle = acos(orbit_vector_body(1));
+            cross_vector = cross([1.0; 0.0; 0.0], v);
+            torque_dir_y = sign(cross_vector(2));
+            angle = acos(v(1));
             % time that rw(z) saturate with continuous maximum torque
             t_saturate = user.hw_max / user.trq_max;
             % total change angle and angular_velocity until saturation
@@ -41,18 +39,18 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
                 user.rw_reverse_time = t_saturate + (angle - 2 * angle_saturate) / w_saturate;
                 user.mode_change_time = user.rw_reverse_time + t_saturate;
             end
-            user.torque_dir_z = torque_dir_z;
-            T_rw = [0; 0; -user.torque_dir_z * user.trq_max; 0];
+            user.torque_dir_y = torque_dir_y;
+            T_rw = [0; -user.torque_dir_y * user.trq_max; 0; 0];
             M_mtq = [0; 0; 0];
             is_observe = false;
             return
         elseif t <= user.rw_reverse_time
-            T_rw = [0; 0; -user.torque_dir_z * user.trq_max; 0];
+            T_rw = [0; -user.torque_dir_y * user.trq_max; 0; 0];
             M_mtq = [0; 0; 0];
             is_observe = false;
             return
         elseif user.rw_reverse_time <= t && t < user.mode_change_time
-            T_rw = [0; 0; user.torque_dir_z * user.trq_max; 0];
+            T_rw = [0; user.torque_dir_y * user.trq_max; 0; 0];
             M_mtq = [0; 0; 0];
             is_observe = false;
             return
@@ -89,10 +87,11 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
     target_latlon = user.use_targets{user.current_target_index};
     target_eci = ecef2eci(lla2ecef(target_latlon(1), target_latlon(2), 0), utc);
     alignment = normalize(target_eci - r, "norm");
-    constraint = normalize(cross(r, [0.0; 0.0; -user.r_earth] - r), "norm");
+    % constraint = normalize(cross(r, [0.0; 0.0; -user.r_earth] - r), "norm");
+    constraint = normalize(cross(alignment, v), "norm");
     % orthogonalization
     third = normalize(cross(alignment, constraint), "norm");
-    constraint = normalize(cross(third, alignment), "norm");
+    % constraint = normalize(cross(third, alignment), "norm");
     target_dcm = [constraint';third';alignment'];
     % calculate error as vector part of quaternion error
     current_dcm = q2dcm(q);
@@ -137,9 +136,36 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
     u = user.kp * e + user.ki * user.e_total + user.kd * (e - user.e_prev) / dt;
     user.e_prev = e;
 
-    % torque distribution: skew not used
-    T_rw = [-u; 0.0];
+    % %% torque distribution: skew not used
+    % T_rw = [-u; 0.0];
 
+    % torque distribution: skew not used
+    A = [1, 0, 0, cos(pi/4)*cos(pi/4);
+         0, 1, 0, sin(pi/4)*cos(pi/4);
+         0, 0, 1, sin(pi/4)];
+    T_rw = pinv(A)*(-u);
+    % T_rw = T_rw.*0;
+    
     % MTQ not used
     M_mtq = [0; 0; 0];
+
+    % %% MTQ cross product %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % hw_xyz = hw(1:3);  % xyz方向のRWの角運動量を取り出す
+    % hw_n = hw_xyz/norm(hw_xyz);  % hwの正規化
+    % B_n = mag/norm(mag);  % 地磁気ベクトルの正規化
+    % if abs(dot(hw_n, B_n)) < 0.5  % θが60度以上ならば磁気トルカを稼働
+    %     dir = cross(hw_n, B_n);  % 磁気モーメントの方向を定める
+    %     dir_unit = dir/norm(dir);  % 方向ベクトルの正規化
+    %     k_max = min(5.0 ./ abs(dir_unit));  % 方向ベクトルの３成分のうち最も大きい成分をmtq_maxに合わせる
+    %     M_mtq = k_max*dir_unit;
+    % else
+    %     M_mtq = [0; 0; 0];
+    % end
+    % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+    % % MTQ MAX %%%%%%%%%%%%%%
+    % M_mtq = [5.0; 5.0; 5.0];
+    % %%%%%%%%%%%%%%%%%%%%%%%%
+
 end
