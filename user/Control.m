@@ -20,86 +20,47 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
 
     global user
 
-    % at first, change attitude from PX-Sun to PX-Velocity angular moment (Z rotation)
-    % in this step, control torque calculated roughly by feed-forward
+    % X-Orbit Vec. / Y-Velocity
     if user.mode == 1
-        if user.rw_reverse_time == 0
-            cross_vector = cross([0.0; 0.0; 1.0], -r);
-            torque_dir_x = sign(cross_vector(1));
-            angle = acos(-r(3));
-            % time that rw(z) saturate with continuous maximum torque
-            t_saturate = user.hw_max / user.trq_max;
-            % total change angle and angular_velocity until saturation
-            angle_saturate = 0.5 * user.trq_max * user.II_inv(3, 3) * t_saturate * t_saturate;
-            w_saturate = user.trq_max * user.II_inv(3, 3) * t_saturate;
-            if angle / 2 < angle_saturate
-                user.rw_reverse_time = sqrt((angle / 2) / (0.5 * user.trq_max * user.II_inv(3, 3)));
-                user.mode_change_time = 2 * user.rw_reverse_time;
-            else
-                user.rw_reverse_time = t_saturate + (angle - 2 * angle_saturate) / w_saturate;
-                user.mode_change_time = user.rw_reverse_time + t_saturate;
-            end
-            user.torque_dir_x = torque_dir_x;
-            T_rw = [-user.torque_dir_x * user.trq_max; 0; 0; 0];
-            M_mtq = [0; 0; 0];
-            is_observe = false;
-            return
-        elseif t <= user.rw_reverse_time
-            T_rw = [user.torque_dir_x * user.trq_max; 0; 0; 0];
-            M_mtq = [0; 0; 0];
-            is_observe = false;
-            return
-        elseif user.rw_reverse_time <= t && t < user.mode_change_time
-            T_rw = [user.torque_dir_x * user.trq_max; 0; 0; 0];
-            M_mtq = [0; 0; 0];
-            is_observe = false;
-            return
-        elseif user.mode_change_time <= t
-            user.mode = 2;
-            user.rw_reverse_time = 0;
-            user.mode_change_time = 0;
-        end
-    end
+        target_X_vec = normalize(cross(r, v), "norm");
+        target_Y_vec = normalize(v, "norm");
+        target_Z_vec = normalize(cross(target_X_vec, target_Y_vec), "norm");
+        target_dcm   = [target_X_vec'; target_Y_vec'; target_Z_vec'];
+        
+        target_q     = dcm2q(target_dcm);
+        current_q    = q;
+        error_q      = quaternion_multiply(target_q, quaternion_conjection(current_q));
 
-    if user.mode == 2
-        if user.rw_reverse_time == 0
-            orbit_vector_eci = normalize(cross(r, v), "norm");
-            orbit_vector_body = q2dcm(q) * orbit_vector_eci;
-            cross_vector = cross([1.0; 0.0; 0.0], [orbit_vector_body(1:2); 0.0]);
-            torque_dir_z = sign(cross_vector(3));
-            angle = acos(orbit_vector_body(1));
-            % time that rw(z) saturate with continuous maximum torque
-            t_saturate = user.hw_max / user.trq_max;
-            % total change angle and angular_velocity until saturation
-            angle_saturate = 0.5 * user.trq_max * user.II_inv(3, 3) * t_saturate * t_saturate;
-            w_saturate = user.trq_max * user.II_inv(3, 3) * t_saturate;
-            if angle / 2 < angle_saturate
-                user.rw_reverse_time = sqrt((angle / 2) / (0.5 * user.trq_max * user.II_inv(3, 3)));
-                user.mode_change_time = 2 * user.rw_reverse_time;
-            else
-                user.rw_reverse_time = t_saturate + (angle - 2 * angle_saturate) / w_saturate;
-                user.mode_change_time = user.rw_reverse_time + t_saturate;
-            end
-            user.torque_dir_z = torque_dir_z;
-            T_rw = [0; 0; -user.torque_dir_z * user.trq_max; 0];
-            M_mtq = [0; 0; 0];
-            is_observe = false;
-            return
-        elseif t <= user.rw_reverse_time
-            T_rw = [0; 0; -user.torque_dir_z * user.trq_max; 0];
-            M_mtq = [0; 0; 0];
-            is_observe = false;
-            return
-        elseif user.rw_reverse_time <= t && t < user.mode_change_time
-            T_rw = [0; 0; user.torque_dir_z * user.trq_max; 0];
-            M_mtq = [0; 0; 0];
-            is_observe = false;
-            return
-        elseif user.mode_change_time <= t
-            user.mode = 3;
-            user.rw_reverse_time = 0;
-            user.mode_change_time = 0;
-        end
+        error_attitude = 2.0 .* [error_q(1); error_q(2); error_q(3)];
+        error_angvel   = - w;
+
+        % PID
+        user.kp = 5.0;
+        user.kd = 0.0;
+        input = user.kp * error_attitude + user.kd * error_angvel;
+
+        % LQR
+        A = [0, 1; 0, 0];
+        B = [0; 1/12];
+        Q = [1, 0; 0, 1];
+        R = 0.1;
+        [K, ~] = lqr_custom(A, B, Q, R);
+        input_x = - K * [error_attitude(1); w(1)];
+
+        B = [0; 1/10];
+        [K, ~] = lqr_custom(A, B, Q, R);
+        input_y = - K * [error_attitude(2); w(2)];
+        input_z = - K * [error_attitude(3); w(3)];
+
+        input   = [input_x; input_y; input_z];
+        input   = [-input_x; 0; 0];
+
+        u     = input;
+
+        T_rw = [u; 0.0];
+        M_mtq = [0; 0; 0];
+        is_observe = false;
+        return
     end
 
     % which is current target
@@ -208,5 +169,71 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
     % % MTQ MAX %%%%%%%%%%%%%%
     % M_mtq = [5.0; 5.0; 5.0];
     % %%%%%%%%%%%%%%%%%%%%%%%%
+
+end
+
+
+function q_c = quaternion_multiply(q_a, q_b) 
+    xa = q_a(1);
+    ya = q_a(2);
+    za = q_a(3);
+    wa = q_a(4);
+    
+    xb = q_b(1);
+    yb = q_b(2);
+    zb = q_b(3);
+    wb = q_b(4);
+
+    wc = wa*wb - xa*xb - ya*yb - za*zb;
+    xc = wa*xb + xa*wb + ya*zb - za*yb;
+    yc = wa*yb - xa*zb + ya*wb + za*xb;
+    zc = wa*zb + xa*yb - ya*xb + za*wb;
+    
+    q_c = [xc, yc, zc, wc];
+end
+
+
+function q_conj = quaternion_conjection(q)
+    q_conj = [-q(1), -q(2), -q(3), q(4)];
+end
+
+
+function [K, S] = lqr_custom(A, B, Q, R)
+    n = size(A, 1);
+    
+    K = [1, 5]; 
+    S = Q; % Sの初期値
+    
+    max_iter = 50;
+    tolerance = 1e-8; 
+    
+    
+    for i = 1:max_iter
+        S_prev = S;
+    
+        % a. リアプノフ方程式を解く
+        % (A-BK)'S + S(A-BK) + K'RK + Q = 0  を S について解く
+        A_cl = A - B * K; % 閉ループ行列
+        Q_lyap = -(K' * R * K + Q); % リアプノフ方程式の右辺項
+        
+        % リアプノフ方程式を行列演算で解ける形に変形
+        % (I kron A_cl' + A_cl' kron I) * s_vec = -q_vec
+        M = kron(eye(n), A_cl') + kron(A_cl', eye(n));
+        s_vec = M \ Q_lyap(:); % vec(Q_lyap) = Q_lyap(:)
+        S = reshape(s_vec, n, n);
+    
+        % b. ゲインを更新
+        K = R \ (B' * S); % inv(R) * B' * S と同じ
+    
+        % c. 収束判定
+        if norm(S - S_prev, 'fro') < tolerance
+            %fprintf('収束しました (反復回数: %d)\n', i);
+            break;
+        end
+    end
+    
+    if i == max_iter
+        warning('最大反復回数に達しました。解が収束していない可能性があります。');
+    end
 
 end

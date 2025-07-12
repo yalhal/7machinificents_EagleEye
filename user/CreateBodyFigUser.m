@@ -1,4 +1,7 @@
-function [] = CreateBodyFigUser(q)
+function [] = CreateBodyFigUser(utc, r, v, q)
+
+    global user
+
     % --- 1. 基本となる直方体の寸法を定義 ---
     width1  = 0.8; % X軸方向の幅
     length1 = 0.8; % Y軸方向の長さ
@@ -72,6 +75,19 @@ function [] = CreateBodyFigUser(q)
     vertices3 = [x_coords_c', y_coords_c', z_coords_c'];
     % 円の面を定義 (1からNまでの頂点を全て結ぶ)
     faces3 = 1:num_points;
+
+
+
+    % which is current target
+    if user.current_target_index > length(user.use_targets)
+        % all target used
+        target_eci_nomed = [0; 0; 0];
+        return
+    elseif user.current_target_index < length(user.use_targets)
+        target_latlon = user.use_targets{user.current_target_index};
+        target_eci = ecef2eci(lla2ecef(target_latlon(1), target_latlon(2), 0), utc);
+        target_eci_nomed = (target_eci - r) ./ norm(target_eci - r) .* 2.5;
+    end
     
     % --- 4.9. 回転 ---
     [rows, cols] = size(vertices1');
@@ -89,6 +105,8 @@ function [] = CreateBodyFigUser(q)
     for i = 1:cols
         vertices3_rotated(:,i) = R_total * vertices3(i,:)';
     end
+
+    v_nomed = v ./ norm(v) .* 2.5;
 
     % --- 5. プロットの実行 ---
     figure(22); % 新しい図ウィンドウを作成
@@ -112,21 +130,24 @@ function [] = CreateBodyFigUser(q)
           'FaceColor', 'green', ...
           'FaceAlpha', 0.8, ...              
           'EdgeColor', 'black');
+
+    quiver3(0,0,0,v_nomed(1),v_nomed(2),v_nomed(3));
+    % quiver3(0,0,0,target_eci_nomed(1),target_eci_nomed(2),target_eci_nomed(3));
+
     hold off;
     
-    hold off; % グラフの保持を解除
     
     % --- 6. グラフの見栄えを調整 ---
     title('Eagle Eye');
-    xlabel('←軌道方向');
-    % ylabel('Y軸');
-    zlabel('鉛直上向き→');
+    ylabel('Y');
+    xlabel('X');
+    zlabel('Z');
     
     grid on;
     axis equal; % 各軸のスケールを等しくして、形状の歪みをなくす
     view(3);
     daspect([1 1 1]);
-    set(gca,'CameraUpVector',[1 0 0],'CameraUpVectorMode','manual');
+    %set(gca,'CameraUpVector',[1 0 0],'CameraUpVectorMode','manual');
     
     % 描画範囲を調整して全体が見えるようにする
     xlim([-2.5, 2.5]);
