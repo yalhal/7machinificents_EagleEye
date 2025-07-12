@@ -28,6 +28,7 @@ save_count = 1;
 
 Plan(t_, utc_, x_(N_r), x_(N_v), x_(N_q), x_(N_w), x_(N_hw), targets_);
 
+ts = zeros(smt_ / (dth_ * cpr_) + 1, 1); % 追加
 xs = zeros(smt_ / (dth_ * cpr_) + 1, N_sv);
 
 while (t_ < smt_)
@@ -38,12 +39,17 @@ while (t_ < smt_)
 
     % user control function
     if rem(step, cpr_) == 0
+        % [T_rw, M_mtq, is_observe] = ControlOriginal(t_, utc_, x_(N_r), x_(N_v), x_(N_q), x_(N_w), x_(N_hw), q2dcm(x_(N_q)) * ecef2eci(mag_field_ecef, utc_));
         [T_rw, M_mtq, is_observe] = Control(t_, utc_, x_(N_r), x_(N_v), x_(N_q), x_(N_w), x_(N_hw), q2dcm(x_(N_q)) * ecef2eci(mag_field_ecef, utc_));
     end
 
     if rem(step, pdp_) == 0
         UpdateGeobasemap(lat, lon, 0);
         UpdateStateGraph(T_rw, M_mtq);
+        if(save_count>1) %追加
+            CreateStateGraphUser(ts(1:save_count, :), xs(1:save_count, :), save_count); %追加
+            CreateBodyFigUser(x_(N_q)); % 追加
+        end %追加
         drawnow;
     end
 
@@ -55,6 +61,7 @@ while (t_ < smt_)
     if rem(step, cpr_) == 0
         xs(save_count, :) = x_;
         save_count = save_count + 1;
+        ts(save_count, 1) = t_; % 追加
     end
 
     % observation
@@ -83,6 +90,7 @@ while (t_ < smt_)
     step = step + 1;
 
 end
+
 
 writematrix(xs, "result.csv")
 

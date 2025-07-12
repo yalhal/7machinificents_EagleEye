@@ -12,6 +12,9 @@ function [] = StateUpdate(air_rho, mag_field_ecef, T_rw, M_mtq)
     air_force = -0.5 * air_rho * Cd_ * projected_area * norm(v) * v;
     air_acc = air_force / mass_;
     air_torque = cross(arm, air_force);
+    % display(air_force)
+    % display(arm)
+    % display(air_torque)
 
     % mag
     mag_field_body = q2dcm(q) * ecef2eci(mag_field_ecef, utc_);
