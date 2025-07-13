@@ -1,6 +1,6 @@
 function [] = CreateBodyFigUser(q, utc, r_ecef)
     % --- 1. 基本となる直方体の寸法を定義（スケール調整） ---
-    scale = 300000; % 衛星のスケール（実際のサイズを1000倍に拡大）
+    scale = 100000; % 衛星のスケール（実際のサイズを1000倍に拡大）
     width1  = 0.8 * scale; % x_body軸方向の幅
     length1 = 0.8 * scale; % y_body軸方向の長さ
     height1 = 1.4 * scale; % z_body軸方向の高さ
@@ -52,7 +52,7 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     ];
     faces2 = [1, 2, 3, 4]; % 面は1つだけ
 
-    % --- 4.5. -Y面に貼り付ける円の定義をボディ座標系で追加 ---
+    % --- 4.5. +Z面に貼り付ける円の定義をボディ座標系で追加 ---
     radius_c = 0.6 / 2 * scale; % 直径1なので半径は0.5
     num_points = 50; % 円を表現するための頂点数
     theta_c = linspace(0, 2*pi, num_points); % 0から2πまでの角度ベクトル
@@ -60,7 +60,8 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     x_coords_c = radius_c * cos(theta_c);
     y_coords_c = radius_c * sin(theta_c);
     % Z座標を直方体の+Z面から+0.05だけずらした位置に固定
-    z_coord_c = width1/2 + 0.05 * scale; 
+    % height1 は Z軸方向の高さなので、+height1/2 が上面の中心になります。
+    z_coord_c = height1/2 + 0.05 * scale;
     z_coords_c = ones(1, num_points) * z_coord_c;
     % 頂点行列を作成
     vertices3 = [x_coords_c', y_coords_c', z_coords_c'];
@@ -106,7 +107,7 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     figure(22); % 新しい図ウィンドウを作成
     clf;
     
-    % patch関数で直方体を描画
+    % patch関数で直方体を描画（LLA座標系）
     patch('Vertices', vertices1_lla, 'Faces', faces1, ...
           'FaceColor', [1.0, 0.65, 0.0], ... % オレンジ色のRGB値
           'FaceAlpha', 0.8, ...              
@@ -114,12 +115,13 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     
     hold on; % 現在のグラフを保持して、上書きせずに次のプロットを追加
     
-    % patch関数で上部の長方形（ソーラーパネル）を描画
+    % patch関数で上部の長方形（ソーラーパネル）を描画（LLA座標系）
     patch('Vertices', vertices2_lla, 'Faces', faces2, ...
           'FaceColor', [0.10, 0.10, 0.44], ... % ★色を青色のRGB値に変更
           'FaceAlpha', 0.75, ...              
           'EdgeColor', 'black');   
 
+    % patch関数で円を描画（LLA座標系）
     patch('Vertices', vertices3_lla, 'Faces', faces3, ...
           'FaceColor', 'green', ...
           'FaceAlpha', 0.8, ...              
@@ -179,5 +181,65 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     xlim([lon_min, lon_max]);
     ylim([lat_min, lat_max]);
     zlim([alt_min, alt_max]);
+    
+    % targets.jsonのターゲットを矩形領域としてプロット
+    hold on;
+    global targets_
+    global TARGET_CENTER_INDEX TARGET_NE_INDEX TARGET_NW_INDEX TARGET_SW_INDEX TARGET_SE_INDEX
+    
+    for i = 1:length(targets_)
+        target = targets_{i};
+        center_latlon = target{TARGET_CENTER_INDEX};
+        ne_latlon = target{TARGET_NE_INDEX};
+        nw_latlon = target{TARGET_NW_INDEX};
+        sw_latlon = target{TARGET_SW_INDEX};
+        se_latlon = target{TARGET_SE_INDEX};
+        
+        % 矩形の中心座標を計算
+        center_lon = center_latlon(2);
+        center_lat = center_latlon(1);
+        
+        % 矩形のサイズを計算（10倍にスケーリング）
+        % scale = 10;
+        scale = 1;
+        dlat = (ne_latlon(1) - sw_latlon(1)) * scale;  % 緯度方向のサイズ
+        dlon = (ne_latlon(2) - nw_latlon(2)) * scale;  % 経度方向のサイズ
+        
+        % スケーリングされた矩形の4隅の座標をLLA座標で設定
+        rect_vertices = [
+            center_lon + dlon/2, center_lat + dlat/2, 0;  % 北東: 経度, 緯度, 高度0km
+            center_lon - dlon/2, center_lat + dlat/2, 0;  % 北西: 経度, 緯度, 高度0km
+            center_lon - dlon/2, center_lat - dlat/2, 0;  % 南西: 経度, 緯度, 高度0km
+            center_lon + dlon/2, center_lat - dlat/2, 0   % 南東: 経度, 緯度, 高度0km
+        ];
+        
+        % 矩形をプロット（緑色の半透明）
+        patch('Vertices', rect_vertices, 'Faces', [1 2 3 4], ...
+              'FaceColor', 'green', 'FaceAlpha', 0.3, 'EdgeColor', 'green');
+    end
+    
+    % 衛星の位置をマーカーで表示
+    plot3(lon_sat, lat_sat, alt_sat/1000, 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'red');
+    
+    % ボディ座標系の+Z方向（カメラ方向）の半直線を描画
+    % ボディ座標系での光軸方向ベクトル
+    los_body = [0, 0, 1]; % +Z方向
+    
+    % ボディ座標系からECEF座標系への変換
+    los_ecef = R_total * los_body';
+    
+    % 光軸の長さを設定（無限大）
+    los_length = 1000000; % 光軸の長さ（1000km）
+    
+    % 光軸の終点を計算（ECEF座標系）
+    los_end_ecef = r_ecef + los_ecef * los_length;
+    
+    % 光軸の終点をLLA座標に変換
+    [los_end_lat, los_end_lon, los_end_alt] = ecef2lla(los_end_ecef);
+    
+    % 光軸を描画（赤い線）
+    plot3([lon_sat, los_end_lon], [lat_sat, los_end_lat], [alt_sat/1000, los_end_alt/1000], 'r-', 'LineWidth', 2);
+    
+    hold off;
 
 end
