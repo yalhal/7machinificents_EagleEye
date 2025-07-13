@@ -187,6 +187,9 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     global targets_
     global TARGET_CENTER_INDEX TARGET_NE_INDEX TARGET_NW_INDEX TARGET_SW_INDEX TARGET_SE_INDEX
     
+    % 現在撮影中のターゲットインデックスを取得
+    [current_obs_index, ~, ~, ~, ~, ~, ~, ~] = IsValidObservation();
+    
     for i = 1:length(targets_)
         target = targets_{i};
         center_latlon = target{TARGET_CENTER_INDEX};
@@ -213,9 +216,20 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
             center_lon + dlon/2, center_lat - dlat/2, 0   % 南東: 経度, 緯度, 高度0km
         ];
         
-        % 矩形をプロット（緑色の半透明）
+        % 撮影中のターゲットかどうかで色を決定
+        if i == current_obs_index
+            % 撮影中: 赤色
+            rect_color = 'red';
+            edge_color = 'red';
+        else
+            % 撮影していない: 緑色
+            rect_color = 'green';
+            edge_color = 'green';
+        end
+        
+        % 矩形をプロット
         patch('Vertices', rect_vertices, 'Faces', [1 2 3 4], ...
-              'FaceColor', 'green', 'FaceAlpha', 0.3, 'EdgeColor', 'green');
+              'FaceColor', rect_color, 'FaceAlpha', 0.3, 'EdgeColor', edge_color);
     end
     
     % 衛星の位置をマーカーで表示
