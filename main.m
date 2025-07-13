@@ -48,7 +48,7 @@ while (t_ < smt_)
         UpdateStateGraph(T_rw, M_mtq);
         if(save_count>1) %追加
             CreateStateGraphUser(ts(1:save_count, :), xs(1:save_count, :), save_count); %追加
-            CreateBodyFigUser(x_(N_q)); % 追加
+            CreateBodyFigUser(x_(N_q), utc_); % 追加
         end %追加
         drawnow;
     end
