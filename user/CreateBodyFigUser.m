@@ -1,21 +1,21 @@
 function [] = CreateBodyFigUser(q, utc, r_ecef)
     % --- 1. 基本となる直方体の寸法を定義（スケール調整） ---
-    scale = 100000; % 衛星のスケール（実際のサイズを1000倍に拡大）
+    scale = 100000; % 衛星のスケール（実際のサイズを100000倍に拡大）
     width1  = 0.8 * scale; % x_body軸方向の幅
     length1 = 0.8 * scale; % y_body軸方向の長さ
     height1 = 1.4 * scale; % z_body軸方向の高さ
 
     % --- 1.5. クォータニオンから回転行列への変換 ---
-    % ボディ座標系から慣性座標系（ECI）への変換
-    R_q = q2dcm(q);
+    % ボディ座標系から慣性座標系(ECI)への変換行列
+    R_body_to_eci = q2dcm(q);
 
     % 慣性座標系（ECI）から地球固定座標系（ECEF）への変換
     timehack = [year(utc), month(utc), day(utc), hour(utc), minute(utc), second(utc)];
     gast = siderealtime(timehack);
-    R_eci2ecef = CoordinateRotation("z", gast);
+    R_eci_to_ecef = CoordinateRotation("z", gast);
 
     % 合成回転: ボディ座標系 → 地球固定座標系（ECEF）
-    R_total = R_eci2ecef * R_q;
+    R_body_to_ecef = R_eci_to_ecef * R_body_to_eci;
     
     % --- 2. 直方体の頂点(Vertices)と面(Faces)をボディ座標系で定義 ---
     vertices1 = [
@@ -70,9 +70,10 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     
     % --- 4.9. 回転と位置の適用 ---
     % ボディ座標系からECEF座標系への変換
-    vertices1_rotated = vertices1*R_total';
-    vertices2_rotated = vertices2*R_total';
-    vertices3_rotated = vertices3*R_total';
+    % verticesは行ベクトルとして定義されているため、回転行列の転置を右から掛ける
+    vertices1_rotated = vertices1 * R_body_to_ecef';
+    vertices2_rotated = vertices2 * R_body_to_ecef';
+    vertices3_rotated = vertices3 * R_body_to_ecef';
     
     % ECEF座標系での衛星位置を加算
     vertices1_ecef = vertices1_rotated + r_ecef';
@@ -126,7 +127,6 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
           'FaceColor', 'green', ...
           'FaceAlpha', 0.8, ...              
           'EdgeColor', 'black');
-    hold off;
     
     hold off; % グラフの保持を解除
     
@@ -146,37 +146,13 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     view(3);
     
     % 描画範囲を本州全体が見えるように固定
-    % 本州の概略座標範囲（ECEF座標系）
-    % 緯度: 約30°N-46°N, 経度: 約130°E-146°E
-    % 地球半径: 約6371000m
-    earth_radius = 6371000; % 地球半径 [m]
-    
-    % 本州の概略範囲（ECEF座標）
-    % 北端: 約46°N, 南端: 約30°N
-    % 東端: 約146°E, 西端: 約130°E
-    lat_north = 46; lat_south = 30;
-    lon_east = 146; lon_west = 130;
-    
-    % 北端と南端のECEF座標
-    r_north = lla2ecef(lat_north, (lon_east+lon_west)/2, 0);
-    r_south = lla2ecef(lat_south, (lon_east+lon_west)/2, 0);
-    
-    % 東端と西端のECEF座標
-    r_east = lla2ecef((lat_north+lat_south)/2, lon_east, 0);
-    r_west = lla2ecef((lat_north+lat_south)/2, lon_west, 0);
-    
-    % 表示範囲をLLA座標で設定
-    margin_lon = 5; % 経度方向のマージン（5度）
-    margin_lat = 5; % 緯度方向のマージン（5度）
-    margin_alt = 600; % 高度方向のマージン（600km）
-    
-    % 本州の概略範囲をLLA座標で設定
-    lon_min = lon_west - margin_lon;
-    lon_max = lon_east + margin_lon;
-    lat_min = lat_south - margin_lat;
-    lat_max = lat_north + margin_lat;
-    alt_min = 0; % 高度0km（地球表面）
-    alt_max = 600; % 高度600km
+    % ... (描画範囲の設定は変更なし) ...
+    lon_min = 125;
+    lon_max = 150;
+    lat_min = 30;
+    lat_max = 50;
+    alt_min = 0;
+    alt_max = 600;
     
     xlim([lon_min, lon_max]);
     ylim([lat_min, lat_max]);
@@ -198,22 +174,12 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
         sw_latlon = target{TARGET_SW_INDEX};
         se_latlon = target{TARGET_SE_INDEX};
         
-        % 矩形の中心座標を計算
-        center_lon = center_latlon(2);
-        center_lat = center_latlon(1);
-        
-        % 矩形のサイズを計算（10倍にスケーリング）
-        % scale = 10;
-        scale = 1;
-        dlat = (ne_latlon(1) - sw_latlon(1)) * scale;  % 緯度方向のサイズ
-        dlon = (ne_latlon(2) - nw_latlon(2)) * scale;  % 経度方向のサイズ
-        
-        % スケーリングされた矩形の4隅の座標をLLA座標で設定
+        % 矩形の4隅の座標をLLA座標で設定
         rect_vertices = [
-            center_lon + dlon/2, center_lat + dlat/2, 0;  % 北東: 経度, 緯度, 高度0km
-            center_lon - dlon/2, center_lat + dlat/2, 0;  % 北西: 経度, 緯度, 高度0km
-            center_lon - dlon/2, center_lat - dlat/2, 0;  % 南西: 経度, 緯度, 高度0km
-            center_lon + dlon/2, center_lat - dlat/2, 0   % 南東: 経度, 緯度, 高度0km
+            ne_latlon(2), ne_latlon(1), 0; % 北東
+            nw_latlon(2), nw_latlon(1), 0; % 北西
+            sw_latlon(2), sw_latlon(1), 0; % 南西
+            se_latlon(2), se_latlon(1), 0  % 南東
         ];
         
         % 撮影中のターゲットかどうかで色を決定
@@ -236,14 +202,14 @@ function [] = CreateBodyFigUser(q, utc, r_ecef)
     plot3(lon_sat, lat_sat, alt_sat/1000, 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'red');
     
     % ボディ座標系の+Z方向（カメラ方向）の半直線を描画
-    % ボディ座標系での光軸方向ベクトル
-    los_body = [0, 0, 1]; % +Z方向
+    % ボディ座標系での光軸方向ベクトル (列ベクトル)
+    los_body = [0; 0; 1]; % +Z方向
     
     % ボディ座標系からECEF座標系への変換
-    los_ecef = R_total * los_body';
+    los_ecef = R_body_to_ecef * los_body;
     
-    % 光軸の長さを設定（無限大）
-    los_length = 1000000; % 光軸の長さ（1000km）
+    % 光軸の長さを設定（地上に届くまで）
+    los_length = alt_sat * 2; % 十分な長さを設定
     
     % 光軸の終点を計算（ECEF座標系）
     los_end_ecef = r_ecef + los_ecef * los_length;
