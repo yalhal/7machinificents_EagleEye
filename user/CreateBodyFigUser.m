@@ -1,4 +1,4 @@
-function [] = CreateBodyFigUser(utc, r, v, q)
+function [] = CreateBodyFigUser(utc, r, v, q, hw, mag)
 
     global user
 
@@ -106,7 +106,18 @@ function [] = CreateBodyFigUser(utc, r, v, q)
         vertices3_rotated(:,i) = R_total * vertices3(i,:)';
     end
 
-    v_nomed = v ./ norm(v) .* 2.5;
+    r_nomed = r ./ norm(r) .* 3;
+    v_nomed = v ./ norm(v) .* 3;
+    A = [1, 0, 0, cos(pi/4)*cos(pi/4);
+         0, 1, 0, sin(pi/4)*cos(pi/4);
+         0, 0, 1, sin(pi/4)];
+    hw_vec = A * hw;
+    hw_nomed  = hw_vec ./ norm(hw_vec) .* 3;
+    mag_nomed = mag ./ norm(mag) .* 3;
+
+    x_b = R_total * [1;0;0] .* 1.5; 
+    y_b = R_total * [0;1;0] .* 1.5; 
+    z_b = R_total * [0;0;1] .* 1.5; 
 
     % --- 5. プロットの実行 ---
     figure(22); % 新しい図ウィンドウを作成
@@ -131,7 +142,22 @@ function [] = CreateBodyFigUser(utc, r, v, q)
           'FaceAlpha', 0.8, ...              
           'EdgeColor', 'black');
 
+    
+    
+    quiver3(0,0,0,x_b(1),x_b(2),x_b(3));
+    text(x_b(1), x_b(2), x_b(3), '  x_{body}');
+    quiver3(0,0,0,y_b(1),y_b(2),y_b(3));
+    text(y_b(1), y_b(2), y_b(3), '  y_{body}');
+    quiver3(0,0,0,z_b(1),z_b(2),z_b(3));
+    text(z_b(1), z_b(2), z_b(3), '  z_{body}');
+    quiver3(-r_nomed(1),-r_nomed(2),-r_nomed(3),r_nomed(1),r_nomed(2),r_nomed(3),'AutoScaleFactor',1);
+    text(-r_nomed(1), -r_nomed(2), -r_nomed(3), '  r_{nomed}');
     quiver3(0,0,0,v_nomed(1),v_nomed(2),v_nomed(3));
+    text(v_nomed(1), v_nomed(2), v_nomed(3), '  v_{nomed}');
+    %quiver3(0,0,0,hw_nomed(1),hw_nomed(2),hw_nomed(3));
+    %text(hw_nomed(1), hw_nomed(2), hw_nomed(3), '  hw_{nomed}');
+    quiver3(0,0,0,mag_nomed(1),mag_nomed(2),mag_nomed(3));
+    text(mag_nomed(1), mag_nomed(2), mag_nomed(3), '  B_{nomed}');
     % quiver3(0,0,0,target_eci_nomed(1),target_eci_nomed(2),target_eci_nomed(3));
 
     hold off;
@@ -139,9 +165,9 @@ function [] = CreateBodyFigUser(utc, r, v, q)
     
     % --- 6. グラフの見栄えを調整 ---
     title('Eagle Eye');
-    ylabel('Y');
-    xlabel('X');
-    zlabel('Z');
+    xlabel('X_{ECI}');
+    ylabel('Y_{ECI}');
+    zlabel('Z_{ECI}');
     
     grid on;
     axis equal; % 各軸のスケールを等しくして、形状の歪みをなくす

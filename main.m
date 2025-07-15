@@ -17,6 +17,7 @@ global dth_ smt_ cpr_ pdp_
 global N_t N_r N_hw N_sv N_v N_w N_q
 global t_ t_prev_ utc_ utc_prev_ x_ x_prev_
 global targets_
+global user  % 追加
 
 set_Constants;
 set_Targets;
@@ -28,8 +29,10 @@ save_count = 1;
 
 Plan(t_, utc_, x_(N_r), x_(N_v), x_(N_q), x_(N_w), x_(N_hw), targets_);
 
-ts = zeros(smt_ / (dth_ * cpr_) + 1, 1); % 追加
-xs = zeros(smt_ / (dth_ * cpr_) + 1, N_sv);
+ts      = zeros(smt_ / (dth_ * cpr_) + 1, 1); % 追加
+xs      = zeros(smt_ / (dth_ * cpr_) + 1, N_sv);
+tau_air = zeros(smt_ / (dth_ * cpr_) + 1, 3); % 追加
+tau_rw  = zeros(smt_ / (dth_ * cpr_) + 1, 3); % 追加
 
 while (t_ < smt_)
     % environment update
@@ -48,7 +51,7 @@ while (t_ < smt_)
         UpdateStateGraph(T_rw, M_mtq);
         if(save_count>1) %追加
             CreateStateGraphUser(ts(1:save_count, :), xs(1:save_count, :), save_count); %追加
-            CreateBodyFigUser(utc_, x_(N_r), x_(N_v), x_(N_q)); % 追加
+            CreateBodyFigUser(utc_, x_(N_r), x_(N_v), x_(N_q), x_(N_hw), ecef2eci(mag_field_ecef, utc_)); % 追加
         end %追加
         drawnow;
     end
@@ -62,6 +65,7 @@ while (t_ < smt_)
         xs(save_count, :) = x_;
         save_count = save_count + 1;
         ts(save_count, 1) = t_; % 追加
+        %tau_air(save_count, :) = user.tau_air;
     end
 
     % observation

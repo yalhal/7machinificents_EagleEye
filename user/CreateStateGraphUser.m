@@ -8,6 +8,24 @@ function [] = CreateStateGraphUser(ts, xs, save_count)
     plot(ts(1:end-1), euler_angles_deg(1:end-1,2));
     plot(ts(1:end-1), euler_angles_deg(1:end-1,3));
     xlabel("Time [sec]");
+    ylabel("Euler Angle [-]");
+    legend({"pitch","roll","yaw"}); legend;
+    subplot(2, 1, 2);
+    plot(ts(1:end-1), xs(1:end-1,12)); hold on;
+    plot(ts(1:end-1), xs(1:end-1,13));
+    plot(ts(1:end-1), xs(1:end-1,14));
+    % ylim([-1, 1])
+    xlabel("Time [sec]");
+    ylabel("Angular Velocity [rad/s]");
+    legend({"wx", "wy","wz"});
+    %{
+    figure(22);
+    clf;
+    subplot(2, 1, 1);
+    plot(ts(1:end-1), tau_air(1:end-1,1)); hold on;
+    plot(ts(1:end-1), tau_air(1:end-1,2));
+    plot(ts(1:end-1), tau_air(1:end-1,3));
+    xlabel("Time [sec]");
     ylabel("Quaternion [-]");
     legend({"pitch","roll","yaw"});
     subplot(2, 1, 2);
@@ -18,6 +36,7 @@ function [] = CreateStateGraphUser(ts, xs, save_count)
     xlabel("Time [sec]");
     ylabel("Angular Velocity [rad/s]");
     legend({"wx", "wy","wz"});
+    %}
 end
 
 function euler_angles_deg = quat2euler_deg(xs, save_count)

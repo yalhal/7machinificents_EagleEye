@@ -1,10 +1,11 @@
 function [] = StateUpdate(air_rho, mag_field_ecef, T_rw, M_mtq)
     global shapes_ x_ dth_ N_r N_v N_q N_w N_hw Cd_ mass_ II_ II_inv_ mu_ conv_rw2body_ utc_
+    global user   % 追加
 
-    r = x_(N_r);
-    v = x_(N_v);
-    q = x_(N_q);
-    w = x_(N_w);
+    r  = x_(N_r);
+    v  = x_(N_v);
+    q  = x_(N_q);
+    w  = x_(N_w);
     hw = x_(N_hw);
 
     % air
@@ -12,6 +13,7 @@ function [] = StateUpdate(air_rho, mag_field_ecef, T_rw, M_mtq)
     air_force = -0.5 * air_rho * Cd_ * projected_area * norm(v) * v;
     air_acc = air_force / mass_;
     air_torque = cross(arm, air_force);
+    user.tau_air = air_torque;
     % display(air_force)
     % display(arm)
     % display(air_torque)
