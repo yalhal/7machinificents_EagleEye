@@ -21,17 +21,20 @@ function [index, los, pxpy, mxpy, mxmy, pxmy, proportion_before, proportion_afte
     proportion_after = NaN;
 
     if (~IsSatisfyOffNadirRequirement())
+        fprintf("OffNadirRequirement\n"); % 追加
         return;
     end
 
     if (~IsSatisfyLosSpeedRequirement())
+        fprintf("LosSpeedRequirement\n"); % 追加
         return;
     end
 
     if (~IsSatisfyObservationIntervalConstraint())
+        fprintf("ObservationIntervalConstraint\n"); % 追加
         return;
     end
 
-    [index, los, pxpy, mxpy, mxmy, pxmy, proportion_before, proportion_after] = DetectObservationTarget();
+    [index, los, pxpy, mxpy, mxmy, pxmy, proportion_before, proportion_after] = DetectObservationTarget()
 
 end

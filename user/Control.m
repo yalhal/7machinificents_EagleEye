@@ -25,13 +25,16 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
          0, 1, 0, sin(pi/4)*cos(pi/4);
          0, 0, 1, sin(pi/4)];
 
-    % X -> Orbit Vec. / Y -> Velocity Vec.
+
+    % Stable Attitude
     if user.mode == 1
+
         % Target DCM
+        % X -> Orbit Vec. / Y -> Velocity Vec.
         target_X_vec = normalize(cross(r, v), "norm");
         target_Y_vec = normalize(v, "norm");
         target_Z_vec = normalize(cross(target_X_vec, target_Y_vec), "norm");
-        target_dcm   = [target_X_vec'; target_Y_vec'; target_Z_vec']';
+        target_dcm   = [target_X_vec'; target_Y_vec'; target_Z_vec'];
         
         % Error DCM
         current_dcm  = q2dcm(q);
@@ -42,10 +45,18 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
         error_attitude = 2.0 .* [error_q(1); error_q(2); error_q(3)]
         error_angvel   = - w;
 
+        % Integration of Error
+        if ~exist('user.error_integed', 'var')
+            user.error_integed = 0.0;
+        end
+        error_traped       = (user.e_prev + error_attitude) * user.dt_control / 2;
+        user.error_integed = user.error_integed + error_traped;
+
         % PID Control
         user.kp = 1.4;
         user.kd = 1.8;
-        input = - user.kp .* error_attitude - user.kd .* error_angvel;
+        user.ki = 0.00;
+        input = - user.kp .* error_attitude - user.ki * user.error_integed - user.kd .* error_angvel;
 
         % LQR (not used)
         %{
@@ -78,7 +89,6 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
             limit_cross = cos(deg2rad(70));
             hw_vec  = A*hw;
             inner_vec = abs(dot(hw_vec./norm(hw_vec), mag./norm(mag)));
-            display(rad2deg(acos(inner_vec)))
             if (inner_vec < limit_cross)
                 user.k_mtq = 100.0;
                 M_mtq = -user.k_mtq .* cross(hw_vec, mag);
@@ -93,63 +103,64 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
         % Observation
         is_observe = false;
         
+        % Judge Convergence
+        if (max(abs(error_attitude)) < deg2rad(10))
+            user.mode = 2;
+            user.error_integed = 0;
+        end
+        
         return
     end
 
 
     % Observation
     if user.mode == 2
-        % Target selection
-        if user.current_target_index > length(user.use_targets)
-            % all target Passed
-            user.mode = 3;
-            T_rw = [0; 0; 0; 0];
-            M_mtq = [0; 0; 0];
-            is_observe = false;
-            return
-        elseif user.current_target_index < length(user.use_targets)
-            % Check distance between satellite and target
-            % if next target is closer than current target, change target
-            ct = user.use_targets{user.current_target_index};
-            current_target_eci = ecef2eci(lla2ecef(ct(1), ct(2), 0), utc);
-            nt = user.use_targets{user.current_target_index + 1};
-            next_target_eci = ecef2eci(lla2ecef(nt(1), nt(2), 0), utc);
-            current_distance = norm(r - current_target_eci);
-            next_distance = norm(r - next_target_eci);
-            if current_distance > next_distance
+        % Target Selection
+        if user.current_target_index < length(user.use_targets)
+            % Distance to Current Target
+            curr_target_lla = user.use_targets{user.current_target_index};
+            curr_target_eci = ecef2eci(lla2ecef(curr_target_lla(1), curr_target_lla(2), 0), utc);
+            curr_target_dis = norm(r - curr_target_eci);
+            % Distance to Next Target
+            next_target_lla = user.use_targets{user.current_target_index + 1};
+            next_target_eci = ecef2eci(lla2ecef(next_target_lla(1), next_target_lla(2), 0), utc);
+            next_target_dis = norm(r - next_target_eci);
+            % Compare
+            if curr_target_dis > next_target_dis
                 user.current_target_index = user.current_target_index + 1;
             end
+        elseif user.current_target_index > length(user.use_targets)
+            user.mode = 3;          % all target Passed
         end
     
         % Target DCM
-        % Z -> Target, X -> east (cross of r and r to south)
+        % Z -> Target, X -> Orbit Vec. (as possible)
         target_latlon = user.use_targets{user.current_target_index};
         target_eci    = ecef2eci(lla2ecef(target_latlon(1), target_latlon(2), 0), utc);
         target_Z_vec  = normalize(target_eci - r, "norm");
+        target_Y_vec  = normalize(cross(target_Z_vec, normalize(cross(r, v), "norm")), "norm");
+        target_X_vec = normalize(cross(target_Y_vec, target_Z_vec), "norm");
+        target_dcm   = [target_X_vec'; target_Y_vec'; target_Z_vec'];
+        
+        % Error DCM
+        current_dcm  = q2dcm(q);
+        error_dcm    = target_dcm * current_dcm';
+        error_q      = dcm2q(error_dcm);
 
+        % Error Euler Angle / Angular Vel.
+        error_attitude = 2.0 .* [error_q(1); error_q(2); error_q(3)]
+        error_angvel   = - w;
 
-        target_dcm   = [target_X_vec'; target_Y_vec'; target_Z_vec']';
+        % Error CAM angle
+        error_angle = rad2deg(acos(dot(user.los, current_dcm*target_Z_vec)));
 
-        % constraint = normalize(cross(r, [0.0; 0.0; -user.r_earth] - r), "norm");
-        constraint = normalize(cross(target_Z_vec, v), "norm");
-        % orthogonalization
-        third = normalize(cross(target_Z_vec, constraint), "norm");
-        % constraint = normalize(cross(third, alignment), "norm");
-        target_dcm = [constraint';third';target_Z_vec'];
-        % calculate error as vector part of quaternion error
-        current_dcm = q2dcm(q);
-        error_dcm = target_dcm * current_dcm';
-        error_q = dcm2q(error_dcm);
-        e = error_q(1:3);
-        error_angle = rad2deg(acos(dot(user.los, current_dcm * target_Z_vec)));
-    
-        % if control error is small, exec observation and change target for next step
-        if error_angle < user.fov_x / 4
+        % Judge of Observation
+        if (error_attitude(2) < user.fov_x / 4 && error_attitude(1) < deg2rad(5))
             [index, ~, ~, ~, ~, ~, ~, ~] = IsValidObservation();
             if index ~= 0
                 is_observe = true;
                 user.current_target_index = user.current_target_index + 1;
-                user.e_total = 0.0;
+                user.error_integed = 0.0;
             else
                 is_observe = false;
             end
@@ -158,10 +169,10 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
         end
     
         % if target is close, change gain
-        nadir_body = current_dcm * normalize(-r, "norm");
+        nadir_body  = current_dcm * normalize(-r, "norm");
         target_body = current_dcm * target_Z_vec;
         offnadir = rad2deg(acos(dot(nadir_body, target_body)));
-        if offnadir < 50
+        if (offnadir < 50)
             user.kp = 1.4;
             user.kd = 1.9;
             user.ki = 0.03;
@@ -169,28 +180,41 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
             user.kp = 0.24;
             user.kd = 3.9;
             user.ki = 0.00;
-            user.e_total = 0;
+            user.error_integed = 0;
         end
-    
+
+        % Integration of Error
+        error_traped       = (user.e_prev + error_attitude) * user.dt_control / 2;
+        user.error_integed = user.error_integed + error_traped;
+
         % PID controller
-        dt = user.dt_control;
-        e_i = (user.e_prev + e) * dt / 2;
-        user.e_total = user.e_total + e_i;
-        u = user.kp * e + user.ki * user.e_total + user.kd * (e - user.e_prev) / dt;
-        user.e_prev = e;
-    
-        % %% torque distribution: skew not used
-        % T_rw = [-u; 0.0];
-    
-        % torque distribution: skew used
-        A = [1, 0, 0, cos(pi/4)*cos(pi/4);
-             0, 1, 0, sin(pi/4)*cos(pi/4);
-             0, 0, 1, sin(pi/4)];
-        T_rw = pinv(A)*(-u);
-        % T_rw = T_rw.*0;
-        
-        % MTQ not used
-        M_mtq = [0; 0; 0];
+        user.kp = 1.4;
+        user.kd = 1.8;
+        user.ki = 0.00;
+        input = - user.kp .* error_attitude - user.ki * user.error_integed - user.kd .* error_angvel;
+
+        % Distribution Law
+        u     = input;
+        if max(u) > user.trq_max
+            T_rw = pinv(A)*u;
+        else
+            T_rw = [u; 0.0];
+        end
+
+        % B-dot
+        if (offnadir < 50)
+            if ~exist('user.mag_prev', 'var')
+                user.mag_prev = mag;
+            end
+            B_dot = (mag - user.mag_prev) / user.dt_control;
+            user.mag_prev = mag;
+            user.kb       = 1e4;
+
+            M_mtq = -user.kb .* B_dot .*0;
+        else
+            M_mtq = [0; 0; 0];
+        end
+        return
     end
 
        

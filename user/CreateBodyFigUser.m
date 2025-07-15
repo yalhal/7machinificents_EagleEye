@@ -24,7 +24,7 @@ function [] = CreateBodyFigUser(utc, r, v, q, hw, mag)
                   -sind(theta_y2),  0,  cosd(theta_y2)];
     % ★3つの回転行列を結合
     % 回転は指定された順に、行列を左から掛けていく
-    R_total = R_q;
+    R_total = R_q';
     
     % --- 2. 直方体の頂点(Vertices)と面(Faces)を定義 ---
     vertices1 = [
@@ -156,9 +156,14 @@ function [] = CreateBodyFigUser(utc, r, v, q, hw, mag)
     text(v_nomed(1), v_nomed(2), v_nomed(3), '  v_{nomed}');
     %quiver3(0,0,0,hw_nomed(1),hw_nomed(2),hw_nomed(3));
     %text(hw_nomed(1), hw_nomed(2), hw_nomed(3), '  hw_{nomed}');
-    quiver3(0,0,0,mag_nomed(1),mag_nomed(2),mag_nomed(3));
-    text(mag_nomed(1), mag_nomed(2), mag_nomed(3), '  B_{nomed}');
-    % quiver3(0,0,0,target_eci_nomed(1),target_eci_nomed(2),target_eci_nomed(3));
+    % quiver3(0,0,0,mag_nomed(1),mag_nomed(2),mag_nomed(3));
+    % text(mag_nomed(1), mag_nomed(2), mag_nomed(3), '  B_{nomed}');
+    if (user.current_target_index < length(user.use_targets))
+        if (norm(target_eci_nomed) > 0)
+            quiver3(0,0,0,target_eci_nomed(1),target_eci_nomed(2),target_eci_nomed(3));
+            text(target_eci_nomed(1), target_eci_nomed(2), target_eci_nomed(3), '  Target');
+        end
+    end
 
     hold off;
     
