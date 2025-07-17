@@ -43,19 +43,21 @@ function [] = Plan(t, utc, r, v, q, w, hw, targets)
     noshiro = targets{6};
     chiba = targets{28};
     user.use_targets = [
-        SampleCreateTrackingPointsForNorthSouthSweep( ...
+        CreateTrackingPointsGridSweep( ...
             noshiro{TARGET_NE_INDEX}, ...
             noshiro{TARGET_NW_INDEX}, ...
             noshiro{TARGET_SW_INDEX}, ...
             noshiro{TARGET_SE_INDEX}, ...
-            fov_ns_m ...
+            fov_ns_m, ...
+            fov_ew_m ...
         );
-        SampleCreateTrackingPointsForNorthSouthSweep( ...
+        CreateTrackingPointsGridSweep( ...
             chiba{TARGET_NE_INDEX}, ...
             chiba{TARGET_NW_INDEX}, ...
             chiba{TARGET_SW_INDEX}, ...
             chiba{TARGET_SE_INDEX}, ...
-            fov_ns_m ...
+            fov_ns_m, ...
+            fov_ew_m ...
         );
     ];
     user.current_target_index = 1;
@@ -71,113 +73,168 @@ function [] = Plan(t, utc, r, v, q, w, hw, targets)
 
 end
 
-% 7/16川﨑作成
-function [points] = SampleCreateTrackingPointsForNorthSouthSweep(ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_ns_m)
-    % ターゲット領域をFOVで分割して南北方向の観測点を作る関数
-    %   入力：
-    %   ne_latlon: ターゲット領域の北東端の緯度経度（1 x 2）[deg, deg]
-    %   nw_latlon: ターゲット領域の北西端の緯度経度（1 x 2）[deg, deg]
-    %   sw_latlon: ターゲット領域の南西端の緯度経度（1 x 2）[deg, deg]
-    %   se_latlon: ターゲット領域の南東端の緯度経度（1 x 2）[deg, deg]
-    %   fov_ns_m: 観測可能な南北方向の長さ（視野）[m]
-    %   出力：
-    %   points: 各観測点の中心緯度経度のリスト（cell配列）
-    global user
+% % 7/16川﨑作成
+% function [points] = SampleCreateTrackingPointsForNorthSouthSweep(ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_ns_m)
+%     % ターゲット領域をFOVで分割して南北方向の観測点を作る関数
+%     %   入力：
+%     %   ne_latlon: ターゲット領域の北東端の緯度経度（1 x 2）[deg, deg]
+%     %   nw_latlon: ターゲット領域の北西端の緯度経度（1 x 2）[deg, deg]
+%     %   sw_latlon: ターゲット領域の南西端の緯度経度（1 x 2）[deg, deg]
+%     %   se_latlon: ターゲット領域の南東端の緯度経度（1 x 2）[deg, deg]
+%     %   fov_ns_m: 観測可能な南北方向の長さ（視野）[m]
+%     %   出力：
+%     %   points: 各観測点の中心緯度経度のリスト（cell配列）
+%     global user
 
-    % 南北方向の距離[m]を計算
-    required_distance_m = 2 * pi * user.r_earth * (ne_latlon(1) - se_latlon(1)) / 360;
+%     % 南北方向の距離[m]を計算
+%     required_distance_m = 2 * pi * user.r_earth * (ne_latlon(1) - se_latlon(1)) / 360;
 
-    % 領域をカバーするのに必要な観測回数
-    count = ceil(required_distance_m / fov_ns_m);
+%     % 領域をカバーするのに必要な観測回数
+%     count = ceil(required_distance_m / fov_ns_m);
 
-    % fov_ns_m * count - required_distance_m -> 理想的なマージン（重複なし）
-    % 制御誤差リスク低減のため、理想マージンの半分を重複として導入
-    % 川﨑コメント：例えばターゲット領域の南北が7.4kmでfov_ns_mが3kmとする．観測回数は切り上げて3回となるが，3*3-7.4=1.6kmの余りが生まれる．このうち半分を重複としてのりしろとして使用（残りの半分は観測範囲の外）
-    real_distance_m = required_distance_m + (fov_ns_m * count - required_distance_m) / 2;
-    interval_m = real_distance_m / count;
-    interval_lat = interval_m * 360 / (2 * pi * user.r_earth);
-    northernmost_distance_m = real_distance_m / 2 - interval_m / 2;
-    northernmost_point_lat = ne_latlon(1) - (ne_latlon(1) - se_latlon(1)) / 2 + northernmost_distance_m * 360 / (2 * pi * user.r_earth);
-    points = cell(count, 1);
-    lon = ne_latlon(2) - (ne_latlon(2) - nw_latlon(2)) / 2;
-    % 観測点（緯度経度）のリストを作成
-    for i=1:count
-        points{i} = [northernmost_point_lat - (i - 1) * interval_lat, lon];
-    end
+%     % fov_ns_m * count - required_distance_m -> 理想的なマージン（重複なし）
+%     % 制御誤差リスク低減のため、理想マージンの半分を重複として導入
+%     % 川﨑コメント：例えばターゲット領域の南北が7.4kmでfov_ns_mが3kmとする．観測回数は切り上げて3回となるが，3*3-7.4=1.6kmの余りが生まれる．このうち半分を重複としてのりしろとして使用（残りの半分は観測範囲の外）
+%     real_distance_m = required_distance_m + (fov_ns_m * count - required_distance_m) / 2;
+%     interval_m = real_distance_m / count;
+%     interval_lat = interval_m * 360 / (2 * pi * user.r_earth);
+%     northernmost_distance_m = real_distance_m / 2 - interval_m / 2;
+%     northernmost_point_lat = ne_latlon(1) - (ne_latlon(1) - se_latlon(1)) / 2 + northernmost_distance_m * 360 / (2 * pi * user.r_earth);
+%     points = cell(count, 1);
+%     lon = ne_latlon(2) - (ne_latlon(2) - nw_latlon(2)) / 2;
+%     % 観測点（緯度経度）のリストを作成
+%     for i=1:count
+%         points{i} = [northernmost_point_lat - (i - 1) * interval_lat, lon];
+%     end
 
-end
+% end
 
-% 7/16川﨑作成
-% ターゲット領域をFOVで分割して東西方向の観測点を作る関数
+% % 7/16川﨑作成
+% % ターゲット領域をFOVで分割して東西方向の観測点を作る関数
+% % 入力：
+% %   ne_latlon: ターゲット領域の北東端の緯度経度（1 x 2）[deg, deg]
+% %   nw_latlon: ターゲット領域の北西端の緯度経度（1 x 2）[deg, deg]
+% %   sw_latlon: ターゲット領域の南西端の緯度経度（1 x 2）[deg, deg]
+% %   se_latlon: ターゲット領域の南東端の緯度経度（1 x 2）[deg, deg]
+% %   fov_ew_m: 観測可能な東西方向の長さ（視野）[m]
+% % 出力：
+% %   points: 各観測点の中心緯度経度のリスト（cell配列）
+
+% function [points] = SampleCreateTrackingPointsForEastWestSweep(ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_ew_m)
+%     global user
+
+%     % 中心緯度を計算（経度→距離変換のために必要）
+%     lat_avg = (nw_latlon(1) + sw_latlon(1)) / 2;
+
+%     % 経度1度あたりの距離[m]（緯度によって変化）
+%     meters_per_deg_lon = 2 * pi * user.r_earth * cosd(lat_avg) / 360;
+
+%     % 東西方向の距離[m]を計算
+%     required_distance_m = abs(nw_latlon(2) - ne_latlon(2)) * meters_per_deg_lon;
+
+%     % 領域をカバーするのに必要な観測回数
+%     count = ceil(required_distance_m / fov_ew_m);
+
+%     % 重複を含めた実際の距離
+%     real_distance_m = required_distance_m + (fov_ew_m * count - required_distance_m) / 2;
+%     interval_m = real_distance_m / count;
+%     interval_lon = interval_m / meters_per_deg_lon;
+
+%     % 最西端の観測点の経度
+%     westernmost_distance_m = real_distance_m / 2 - interval_m / 2;
+%     westernmost_point_lon = nw_latlon(2) + (ne_latlon(2) - nw_latlon(2)) / 2 - westernmost_distance_m / meters_per_deg_lon;
+
+%     % 中心緯度は固定（東西掃引なので緯度は同じ）
+%     lat = nw_latlon(1) - (nw_latlon(1) - sw_latlon(1)) / 2;
+
+%     % 観測点（緯度経度）のリストを作成
+%     points = cell(count, 1);
+%     for i = 1:count
+%         points{i} = [lat, westernmost_point_lon + (i - 1) * interval_lon];
+%     end
+% end
+
+% % 7/16川﨑作成
+% function [points] = CreateTrackingPointsAutoSweep(ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_m)
+%     % ターゲット領域の縦横比に応じて南北または東西方向に観測点を生成する関数
+%     % fov_m: 視野幅（南北掃引なら南北方向[m]、東西掃引なら東西方向[m]）
+%     % 出力 points: cell 配列 (1 x 掃引数)、各要素は [lat, lon]
+
+%     global user
+
+%     % --- 1. 緯度・経度の差をもとに領域の寸法（m）を計算 ---
+%     lat_center = (ne_latlon(1) + se_latlon(1)) / 2;
+%     deg2m_lat = 2 * pi * user.r_earth / 360;
+%     deg2m_lon = 2 * pi * user.r_earth * cosd(lat_center) / 360;
+
+%     ns_length = abs(ne_latlon(1) - se_latlon(1)) * deg2m_lat;  % 南北方向の長さ
+%     ew_length = abs(ne_latlon(2) - nw_latlon(2)) * deg2m_lon;  % 東西方向の長さ
+
+%     % --- 2. 長い方を掃引方向に選ぶ ---
+%     if ns_length >= ew_length
+%         % 南北掃引
+%         points = SampleCreateTrackingPointsForNorthSouthSweep( ...
+%             ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_m ...
+%         );
+%     else
+%         % 東西掃引
+%         points = SampleCreateTrackingPointsForEastWestSweep( ...
+%             ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_m ...
+%         );
+%     end
+% end
+
+% 7/17 提案：グリッド（格子）状に掃引する関数
+%
+% ターゲット領域の南北・東西の長さが共に視野より大きい場合に対応。
+%
 % 入力：
-%   ne_latlon: ターゲット領域の北東端の緯度経度（1 x 2）[deg, deg]
-%   nw_latlon: ターゲット領域の北西端の緯度経度（1 x 2）[deg, deg]
-%   sw_latlon: ターゲット領域の南西端の緯度経度（1 x 2）[deg, deg]
-%   se_latlon: ターゲット領域の南東端の緯度経度（1 x 2）[deg, deg]
+%   ne_latlon, nw_latlon, sw_latlon, se_latlon: ターゲットの四隅の緯度経度
+%   fov_ns_m: 観測可能な南北方向の長さ（視野）[m]
 %   fov_ew_m: 観測可能な東西方向の長さ（視野）[m]
 % 出力：
-%   points: 各観測点の中心緯度経度のリスト（cell配列）
+%   points: 格子状に配置された観測点のリスト（cell配列）
 
-function [points] = SampleCreateTrackingPointsForEastWestSweep(ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_ew_m)
+function [points] = CreateTrackingPointsGridSweep(ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_ns_m, fov_ew_m)
     global user
 
-    % 中心緯度を計算（経度→距離変換のために必要）
-    lat_avg = (nw_latlon(1) + sw_latlon(1)) / 2;
+    % --- 1. 南北方向の掃引回数と観測点の間隔を計算 ---
+    ns_distance_m = 2 * pi * user.r_earth * abs(ne_latlon(1) - se_latlon(1)) / 360;
+    count_ns = ceil(ns_distance_m / fov_ns_m);
+    
+    % 重複マージンを考慮
+    real_ns_distance_m = ns_distance_m + (fov_ns_m * count_ns - ns_distance_m) / 2;
+    interval_m_ns = real_ns_distance_m / count_ns;
+    interval_lat = interval_m_ns * 360 / (2 * pi * user.r_earth);
+    
+    % 最北端の観測点の緯度
+    northernmost_distance_m = real_ns_distance_m / 2 - interval_m_ns / 2;
+    northernmost_point_lat = ne_latlon(1) - abs(ne_latlon(1) - se_latlon(1)) / 2 + northernmost_distance_m * 360 / (2 * pi * user.r_earth);
 
-    % 経度1度あたりの距離[m]（緯度によって変化）
-    meters_per_deg_lon = 2 * pi * user.r_earth * cosd(lat_avg) / 360;
+    % --- 2. 東西方向の掃引回数と観測点の間隔を計算 ---
+    lat_avg = (ne_latlon(1) + nw_latlon(1)) / 2;
+    m_per_deg_lon = 2 * pi * user.r_earth * cosd(lat_avg) / 360;
+    ew_distance_m = abs(ne_latlon(2) - nw_latlon(2)) * m_per_deg_lon;
+    count_ew = ceil(ew_distance_m / fov_ew_m);
 
-    % 東西方向の距離[m]を計算
-    required_distance_m = abs(nw_latlon(2) - ne_latlon(2)) * meters_per_deg_lon;
-
-    % 領域をカバーするのに必要な観測回数
-    count = ceil(required_distance_m / fov_ew_m);
-
-    % 重複を含めた実際の距離
-    real_distance_m = required_distance_m + (fov_ew_m * count - required_distance_m) / 2;
-    interval_m = real_distance_m / count;
-    interval_lon = interval_m / meters_per_deg_lon;
-
+    % 重複マージンを考慮
+    real_ew_distance_m = ew_distance_m + (fov_ew_m * count_ew - ew_distance_m) / 2;
+    interval_m_ew = real_ew_distance_m / count_ew;
+    interval_lon = interval_m_ew / m_per_deg_lon;
+    
     % 最西端の観測点の経度
-    westernmost_distance_m = real_distance_m / 2 - interval_m / 2;
-    westernmost_point_lon = nw_latlon(2) + (ne_latlon(2) - nw_latlon(2)) / 2 - westernmost_distance_m / meters_per_deg_lon;
+    westernmost_distance_m = real_ew_distance_m / 2 - interval_m_ew / 2;
+    westernmost_point_lon = nw_latlon(2) + abs(ne_latlon(2) - nw_latlon(2)) / 2 - westernmost_distance_m / m_per_deg_lon;
 
-    % 中心緯度は固定（東西掃引なので緯度は同じ）
-    lat = nw_latlon(1) - (nw_latlon(1) - sw_latlon(1)) / 2;
-
-    % 観測点（緯度経度）のリストを作成
-    points = cell(count, 1);
-    for i = 1:count
-        points{i} = [lat, westernmost_point_lon + (i - 1) * interval_lon];
-    end
-end
-
-% 7/16川﨑作成
-function [points] = CreateTrackingPointsAutoSweep(ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_m)
-    % ターゲット領域の縦横比に応じて南北または東西方向に観測点を生成する関数
-    % fov_m: 視野幅（南北掃引なら南北方向[m]、東西掃引なら東西方向[m]）
-    % 出力 points: cell 配列 (1 x 掃引数)、各要素は [lat, lon]
-
-    global user
-
-    % --- 1. 緯度・経度の差をもとに領域の寸法（m）を計算 ---
-    lat_center = (ne_latlon(1) + se_latlon(1)) / 2;
-    deg2m_lat = 2 * pi * user.r_earth / 360;
-    deg2m_lon = 2 * pi * user.r_earth * cosd(lat_center) / 360;
-
-    ns_length = abs(ne_latlon(1) - se_latlon(1)) * deg2m_lat;  % 南北方向の長さ
-    ew_length = abs(ne_latlon(2) - nw_latlon(2)) * deg2m_lon;  % 東西方向の長さ
-
-    % --- 2. 長い方を掃引方向に選ぶ ---
-    if ns_length >= ew_length
-        % 南北掃引
-        points = SampleCreateTrackingPointsForNorthSouthSweep( ...
-            ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_m ...
-        );
-    else
-        % 東西掃引
-        points = SampleCreateTrackingPointsForEastWestSweep( ...
-            ne_latlon, nw_latlon, sw_latlon, se_latlon, fov_m ...
-        );
+    % --- 3. 格子状の観測点リストを作成 ---
+    points = cell(count_ns * count_ew, 1);
+    point_index = 1;
+    for i = 1:count_ns
+        current_lat = northernmost_point_lat - (i - 1) * interval_lat;
+        for j = 1:count_ew
+            current_lon = westernmost_point_lon + (j - 1) * interval_lon;
+            points{point_index} = [current_lat, current_lon];
+            point_index = point_index + 1;
+        end
     end
 end
