@@ -132,7 +132,12 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
                 user.current_target_index = user.current_target_index + 1;
             end
         elseif user.current_target_index > length(user.use_targets)
-            user.mode = 3;          % all target Passed
+            % Turn off control when all targets have been observed
+            user.mode = 3;
+            T_rw = [0; 0; 0; 0];
+            M_mtq = [0; 0; 0];
+            is_observe = false;
+            return;
         end
     
         % Target DCM
