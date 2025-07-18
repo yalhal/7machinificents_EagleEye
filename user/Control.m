@@ -42,7 +42,7 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
         error_q      = dcm2q(error_dcm);
 
         % Error Euler Angle / Angular Vel.
-        error_attitude = 2.0 .* [error_q(1); error_q(2); error_q(3)]
+        error_attitude = 2.0 .* [error_q(1); error_q(2); error_q(3)];
         error_angvel   = - w;
 
         % Integration of Error
@@ -53,9 +53,9 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
         user.error_integed = user.error_integed + error_traped;
 
         % PID Control
-        user.kp = 1.4;
-        user.kd = 1.8;
-        user.ki = 0.00;
+        user.kp = 1.2;
+        user.kd = 1.6;
+        user.ki = 0.03;
         input = - user.kp .* error_attitude - user.ki * user.error_integed - user.kd .* error_angvel;
 
         % LQR (not used)
@@ -104,7 +104,9 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
         is_observe = false;
         
         % Judge Convergence
-        if (max(abs(error_attitude)) < deg2rad(10))
+        if (max(abs(error_attitude)) < deg2rad(50))
+            user.input_former=input;
+            user.w_former=w;
             user.mode = 2;
             user.error_integed = 0;
         end
@@ -130,7 +132,12 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
                 user.current_target_index = user.current_target_index + 1;
             end
         elseif user.current_target_index > length(user.use_targets)
-            user.mode = 3;          % all target Passed
+            % Turn off control when all targets have been observed
+            user.mode = 3;
+            T_rw = [0; 0; 0; 0];
+            M_mtq = [0; 0; 0];
+            is_observe = false;
+            return;
         end
     
         % Target DCM
@@ -148,7 +155,7 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
         error_q      = dcm2q(error_dcm);
 
         % Error Euler Angle / Angular Vel.
-        error_attitude = 2.0 .* [error_q(1); error_q(2); error_q(3)]
+        error_attitude = 2.0 .* [error_q(1); error_q(2); error_q(3)];
         error_angvel   = - w;
 
         % Error CAM angle
@@ -187,14 +194,19 @@ function [T_rw, M_mtq, is_observe] = Control(t, utc, r, v, q, w, hw, mag)
         error_traped       = (user.e_prev + error_attitude) * user.dt_control / 2;
         user.error_integed = user.error_integed + error_traped;
 
-        % PID controller
-        user.kp = 1.4;
-        user.kd = 1.8;
-        user.ki = 0.00;
-        input = - user.kp .* error_attitude - user.ki * user.error_integed - user.kd .* error_angvel;
-
+        % % PID controller
+        % user.kp = 1.4;
+        % user.kd = 1.9;
+        % user.ki = 0.0;
+        % input = - user.kp .* error_attitude - user.ki * user.error_integed - user.kd .* error_angvel;
+        tau=0.5;
+        user.kp=tau^2*3.*user.II;
+        user.ki=tau^3*user.II;
+        user.kd=tau*3.*user.II;
+        input = - user.kp * error_attitude - user.ki * user.error_integed - user.kd * error_angvel;
+        disturbance=user.tau_air;
         % Distribution Law
-        u     = input;
+        u     = input-disturbance;
         if max(u) > user.trq_max
             T_rw = pinv(A)*u;
         else
